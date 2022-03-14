@@ -173,15 +173,17 @@ const byte getOptionCase(const Menu *selection)
   return mode == RANDOM ? 1 : 0;
 }
 
-ArrayDescriptor<Menu> handleToggleLights(const Menu *selection)
+ArrayDescriptor<Menu> handleToggleLights(const void *selection)
 {
   enabled = !enabled;
 #ifdef STRIP_ENABLED
   strip.clear();
   strip.show(); // вывод изменений на ленту
 #endif
+/*
   Serial.print(F("enabled = "));
   Serial.println(enabled);
+*/  
   return {};
 }
 
@@ -196,34 +198,77 @@ ArrayDescriptor<Menu> handleModeSelection(Mode mode)
   setMode(mode);
   return CMD_RESET_MENU;
 }
-ArrayDescriptor<Menu> handleModeSelectionSmooth(const Menu *selection)
+ArrayDescriptor<Menu> handleModeSelectionSmooth(const void *selection)
 {
   return handleModeSelection(SMOOTH);
 }
-ArrayDescriptor<Menu> handleModeSelectionStep(const Menu *selection)
+ArrayDescriptor<Menu> handleModeSelectionStep(const void *selection)
 {
   return handleModeSelection(STEPPED);
 }
-ArrayDescriptor<Menu> handleModeSelectionRandom(const Menu *selection)
+ArrayDescriptor<Menu> handleModeSelectionRandom(const void *selection)
 {
   return handleModeSelection(RANDOM);
 }
 
-ArrayDescriptor<Menu> handleNumOfLedsSelection(const Menu *selection)
+bool updateValue(const char *val, void *target, size_t size)
+{
+  if (strlen(val) > 0)
+  {
+    const char *format;
+    switch (size)
+    {
+    case sizeof(uint16_t):
+      format = "%hd";
+      break;
+    case sizeof(uint8_t):
+      format = "%hhd";
+      break;
+    default:
+      return 0;
+    }
+    sscanf(val, format, target);
+    return true;
+  }
+  return false;
+}
+
+const byte printNumOfLeds(const Menu *)
 {
   Serial.print(F("current LED count: "));
   Serial.println(numLeds);
-
-  // ToDo: calcSpeed() & calcFactor()
+  return 0;
 }
-ArrayDescriptor<Menu> handlePeriodSelection(const Menu *selection)
+ArrayDescriptor<Menu> handleNumOfLedsSelection(const void *selection)
+{
+  if (updateValue((char *)selection, &numLeds, sizeof(numLeds)))
+  {
+    calcSpeed();
+    calcFactor();
+  }
+
+  return CMD_POP_MENU;
+}
+
+const byte printPeriod(const Menu *)
 {
   Serial.print(F("current loop period: "));
   Serial.println(period);
-  
-  // ToDo: calcSpeed()
+  return 0;
 }
-ArrayDescriptor<Menu> handleNumericSelection(const Menu *selection)
+ArrayDescriptor<Menu> handlePeriodSelection(const void *selection)
+{
+  /*
+  Serial.print(F("current loop period: "));
+  Serial.println(period);
+  */
+  if (updateValue((char *)selection, &period, sizeof(period)))
+  {
+    calcSpeed();
+  }
+  return CMD_POP_MENU;
+}
+ArrayDescriptor<Menu> handleNumericSelection(const void *selection)
 {
   return {};
 }
@@ -252,7 +297,7 @@ const byte processGamutEntry(const Menu *selection)
   calcFactor();
   return 0;
 }
-ArrayDescriptor<Menu> handleGamutEntry(const Menu *selection)
+ArrayDescriptor<Menu> handleGamutEntry(const void *selection)
 {
   gamutsMenu_a = (Menu *)realloc(gamutsMenu_a, sizeof(Menu[gamuts.len]));
   // Menu *gamutsMenu_a = new Menu[gamuts.len]; // FixMe: where is it deleted?
@@ -265,6 +310,7 @@ ArrayDescriptor<Menu> handleGamutEntry(const Menu *selection)
                        nullptr};
   }
 
+  // ToDo:
   /**
     <m>. <presets>
       <preset values>
